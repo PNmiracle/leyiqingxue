@@ -319,6 +319,7 @@ const zhToEnCopy={
   '帮助':'Help',
   '总览':'Overview',
   '导师推荐':'Mentors',
+  '套磁管理':'Outreach',
   '文书材料':'Documents',
   '面试准备':'Interview Prep',
   '申请进度':'Application Progress',
@@ -699,7 +700,7 @@ function StudentPortal({onExit, onNotify, preview=false, student=DEMO_STUDENT}) 
   const submitStudentNote=value=>{setStudentNote(value);void syncPatch({studentNote:value});onNotify('反馈已提交给选导老师');};
   const saveInterviewNote=(questionId,value)=>{setInterviewNotes(current=>({...current,[questionId]:value}));void syncPatch({interviewNotes:{[questionId]:value}});onNotify('面试准备已同步给老师');};
   const feedbackCount=recommended.filter(mentor=>feedback[mentor.id]||feedbackNotes[mentor.id]?.trim()).length;
-  return <div className="portal-shell"><header className="portal-header"><Brand portal/><div className="portal-header-actions">{preview&&<span className="portal-session-mark"><Eye size={13}/>老师预览</span>}<button onClick={onExit}>{preview?'返回老师端':'退出学生端'} <X size={15}/></button><LanguageLayer inline/></div></header><main className="portal-main"><div className="portal-welcome"><div><span className="portal-kicker">{studentName}的服务项目</span><h1>你好，{studentName}</h1><p>老师已经把导师事实、推荐依据和反馈入口整理在一起。</p></div><span className="portal-progress"><b>38%</b><small>整体进度</small></span></div><div className="portal-next-step"><div><span>当前下一步</span><strong>完成导师推荐反馈</strong><small>你的完整反馈会同步回选导老师工作台。</small></div><div className="portal-next-progress"><b>{feedbackCount}/{recommended.length}</b><span>导师已反馈</span><i><em style={{width:`${recommended.length?feedbackCount/recommended.length*100:0}%`}}></em></i></div></div><nav className="portal-tabs">{['总览','导师推荐','文书材料','面试准备','申请进度','签证','PhDHub工具'].map(x=><button className={tab===x?'active':''} aria-current={tab===x?'page':undefined} key={x} onClick={()=>setTab(x)}>{x}{x==='导师推荐'&&<b className="portal-tab-count">{feedbackCount}/{recommended.length}</b>}</button>)}</nav>{tab==='导师推荐'?<StudentMentorView student={{name:studentName,target:studentTarget}} mentors={recommended} sent={true} onNotify={onNotify} feedback={feedback} onFeedback={recordFeedback} feedbackNotes={feedbackNotes} onFeedbackNote={submitMentorFeedback} studentNote={studentNote} onStudentNoteSubmit={submitStudentNote}/>:tab==='面试准备'?<StudentInterviewPrep notes={interviewNotes} onSave={saveInterviewNote} onNotify={onNotify}/>:tab==='PhDHub工具'?<StudentPhdHubView student={{name:studentName,target:studentTarget}} mentors={recommended} feedback={feedback} feedbackNotes={feedbackNotes} interviewNotes={interviewNotes} onSaveInterviewNote={saveInterviewNote} onNotify={onNotify} activeModule={phdHubTab} setActiveModule={setPhdHubTab} caseId={caseId}/>:<PortalOverview tab={tab}/>} {tab!=='PhDHub工具'&&<FileUploadPanel caseId={caseId} uploadedBy={`学生 · ${studentName}`} title="我的材料与共享文件"/>}</main></div>;
+  return <div className="portal-shell"><header className="portal-header"><Brand portal/><div className="portal-header-actions">{preview&&<span className="portal-session-mark"><Eye size={13}/>老师预览</span>}<button onClick={onExit}>{preview?'返回老师端':'退出学生端'} <X size={15}/></button><LanguageLayer inline/></div></header><main className="portal-main"><div className="portal-welcome"><div><span className="portal-kicker">{studentName}的服务项目</span><h1>你好，{studentName}</h1><p>老师已经把导师事实、推荐依据和反馈入口整理在一起。</p></div><span className="portal-progress"><b>38%</b><small>整体进度</small></span></div><div className="portal-next-step"><div><span>当前下一步</span><strong>完成导师推荐反馈</strong><small>你的完整反馈会同步回选导老师工作台。</small></div><div className="portal-next-progress"><b>{feedbackCount}/{recommended.length}</b><span>导师已反馈</span><i><em style={{width:`${recommended.length?feedbackCount/recommended.length*100:0}%`}}></em></i></div></div><nav className="portal-tabs">{['总览','导师推荐','套磁管理','文书材料','面试准备','申请进度','签证','PhDHub工具'].map(x=><button className={tab===x?'active':''} aria-current={tab===x?'page':undefined} key={x} onClick={()=>setTab(x)}>{x}{x==='导师推荐'&&<b className="portal-tab-count">{feedbackCount}/{recommended.length}</b>}</button>)}</nav>{tab==='导师推荐'?<StudentMentorView student={{name:studentName,target:studentTarget}} mentors={recommended} sent={true} onNotify={onNotify} feedback={feedback} onFeedback={recordFeedback} feedbackNotes={feedbackNotes} onFeedbackNote={submitMentorFeedback} studentNote={studentNote} onStudentNoteSubmit={submitStudentNote}/>:tab==='套磁管理'?<StudentOutreachManager mentors={recommended} feedback={feedback} onNotify={onNotify}/>:tab==='面试准备'?<StudentInterviewPrep notes={interviewNotes} onSave={saveInterviewNote} onNotify={onNotify}/>:tab==='PhDHub工具'?<StudentPhdHubView student={{name:studentName,target:studentTarget}} mentors={recommended} feedback={feedback} feedbackNotes={feedbackNotes} interviewNotes={interviewNotes} onSaveInterviewNote={saveInterviewNote} onNotify={onNotify} activeModule={phdHubTab} setActiveModule={setPhdHubTab} caseId={caseId}/>:<PortalOverview tab={tab}/>} {tab!=='PhDHub工具'&&<FileUploadPanel caseId={caseId} uploadedBy={`学生 · ${studentName}`} title="我的材料与共享文件"/>}</main></div>;
 }
 
 function PortalOverview({tab}) {
@@ -736,7 +737,7 @@ const studentPhdHubNav=[
   ['dashboard','套磁看板 (CRM)',LayoutDashboard],
   ['email','邮件记录',Mail],
   ['library','导师库管理',Database],
-  ['templates','套瓷信模板',FileText],
+  ['templates','套磁信模板',FileText],
   ['review','面试回顾',MessageSquare],
   ['clock','世界时钟',Globe2],
   ['schoollist','院校榜单',GraduationCap],
@@ -774,6 +775,24 @@ function StudentOutreachDashboard({mentors,feedback,onNotify}) {
   return <div className="student-phd-panel"><div className="student-phd-panel-head"><div><span className="student-phd-kicker"><LayoutDashboard size={14}/>套磁看板 (CRM)</span><h2>我的套磁进度</h2><p>查看老师与导师的沟通阶段，下一步行动会同步在这里。</p></div><span className="student-phd-readonly">学生端只读进度</span></div><div className="student-phd-metrics"><div><small>候选导师</small><b>{mentors.length}</b></div><div><small>已进入沟通</small><b>{mentors.filter(mentor=>studentMentorStage(mentor,feedback)==='sent').length}</b></div><div><small>收到回复</small><b>{replied}</b></div><div><small>面试中</small><b>{interview}</b></div></div><div className="student-phd-board">{phdOutreachStages.map(stage=>{const rows=mentors.filter(mentor=>studentMentorStage(mentor,feedback)===stage.id);return <section className={`student-phd-stage ${stage.tone}`} key={stage.id}><header><div><strong>{stage.label}</strong><small>{stage.hint}</small></div><b>{rows.length}</b></header><div>{rows.map(mentor=>{const ranking=mentorRankings(mentor);return <article key={mentor.id}><strong>{mentor.name}</strong><small>{mentor.school}</small><p>{mentor.topic}</p><span>QS {ranking.qs} · {mentorField(mentor,'Location')}</span><MentorLinks mentor={mentor}/></article>})}</div>{!rows.length&&<p className="student-phd-empty">暂无记录</p>}</section>})}</div><button type="button" className="student-phd-action" onClick={()=>onNotify('已提醒选导老师更新套磁进度')}><Send size={14}/>提醒老师更新进度</button></div>;
 }
 
+const studentOutreachViews=[
+  ['board','套磁看板',LayoutDashboard,'查看导师沟通阶段'],
+  ['records','邮件记录',Mail,'回顾每次往来节点'],
+  ['templates','邮件模板',FileText,'准备首次联系与跟进']
+];
+
+function StudentOutreachManager({mentors,feedback,onNotify}) {
+  const [view,setView]=useState('board');
+  const active=studentOutreachViews.find(([id])=>id===view)||studentOutreachViews[0];
+  const content={
+    board:<StudentOutreachDashboard mentors={mentors} feedback={feedback} onNotify={onNotify}/>,
+    records:<StudentEmailRecords/>,
+    templates:<StudentTemplateLibrary onNotify={onNotify}/>
+  }[active[0]];
+  const activeCount=mentors.filter(mentor=>studentMentorStage(mentor,feedback)!=='draft').length;
+  return <section className="student-outreach-manager"><div className="student-outreach-hero"><div><span className="student-phd-kicker"><Send size={14}/>PhDHub 套磁管理</span><h2>导师沟通进度，一处看全</h2><p>参考 PhDHub 的 CRM 与邮件归档，把套磁阶段、往来记录和邮件模板放在同一个申请流程里。</p></div><div className="student-outreach-summary"><span><small>沟通导师</small><b>{activeCount}/{mentors.length}</b></span><span><small>邮件记录</small><b>{studentEmailRecords.length}</b></span></div></div><nav className="student-outreach-tabs" role="tablist" aria-label="套磁管理模块">{studentOutreachViews.map(([id,label,Icon,description])=><button type="button" role="tab" key={id} className={view===id?'active':''} aria-selected={view===id} onClick={()=>setView(id)}><Icon size={15}/><span><strong>{label}</strong><small>{description}</small></span></button>)}</nav><div className="student-outreach-content">{content}</div></section>;
+}
+
 function StudentEmailRecords() {
   return <div className="student-phd-panel"><div className="student-phd-panel-head"><div><span className="student-phd-kicker"><Mail size={14}/>邮件记录</span><h2>套磁往来记录</h2><p>老师登记的邮件节点会按导师归档，方便你准备下一次沟通。</p></div><span className="student-phd-count">{studentEmailRecords.length} 条记录</span></div><div className="student-email-list">{studentEmailRecords.map(record=><article key={record.id}><time>{record.date}</time><div><strong>{record.mentor}</strong><small>{record.school}</small><p>{record.subject}</p></div><span><b>{record.tag}</b><small>{record.state}</small></span></article>)}</div></div>;
 }
@@ -789,7 +808,7 @@ function StudentMentorLibrary({mentors,onNotify}) {
 function StudentTemplateLibrary({onNotify}) {
   const [copied,setCopied]=useState('');
   const copy=template=>{if(navigator.clipboard){navigator.clipboard.writeText(template.body).then(()=>{setCopied(template.id);onNotify(`${template.label}模板已复制`);setTimeout(()=>setCopied(''),1600);}).catch(()=>onNotify('浏览器未允许自动复制，请手动复制'));}else onNotify('当前环境不支持自动复制');};
-  return <div className="student-phd-panel"><div className="student-phd-panel-head"><div><span className="student-phd-kicker"><FileText size={14}/>套瓷信模板</span><h2>给导师的邮件模板</h2><p>复制后按自己的经历、研究方向和导师论文修改，再交给老师确认。</p></div><span className="student-phd-count">{phdMailTemplates.length} 组模板</span></div><div className="student-template-grid">{phdMailTemplates.map(template=><article key={template.id}><header><strong>{template.label}</strong><button type="button" onClick={()=>copy(template)}>{copied===template.id?<Check size={13}/>:<FileText size={13}/>} {copied===template.id?'已复制':'复制正文'}</button></header><label>邮件主题<input value={template.subject} readOnly/></label><label>邮件正文<textarea value={template.body} readOnly/></label></article>)}</div></div>;
+  return <div className="student-phd-panel"><div className="student-phd-panel-head"><div><span className="student-phd-kicker"><FileText size={14}/>套磁信模板</span><h2>给导师的邮件模板</h2><p>复制后按自己的经历、研究方向和导师论文修改，再交给老师确认。</p></div><span className="student-phd-count">{phdMailTemplates.length} 组模板</span></div><div className="student-template-grid">{phdMailTemplates.map(template=><article key={template.id}><header><strong>{template.label}</strong><button type="button" onClick={()=>copy(template)}>{copied===template.id?<Check size={13}/>:<FileText size={13}/>} {copied===template.id?'已复制':'复制正文'}</button></header><label>邮件主题<input value={template.subject} readOnly/></label><label>邮件正文<textarea value={template.body} readOnly/></label></article>)}</div></div>;
 }
 
 function StudentInterviewReview({interviewNotes,onSave,onNotify}) {
