@@ -679,7 +679,7 @@ function mutateCrmData(method, payload) {
   });
 }
 
-function StudentPortal({onExit, onNotify, preview=false, student=DEMO_STUDENT}) {
+function StudentPortalLegacy3({onExit, onNotify, preview=false, student=DEMO_STUDENT}) {
   const studentId=student.id||DEMO_STUDENT.id;
   const caseId=`student-${studentId}`;
   const [tab,setTab]=useState('总览');
@@ -701,6 +701,69 @@ function StudentPortal({onExit, onNotify, preview=false, student=DEMO_STUDENT}) 
   const saveInterviewNote=(questionId,value)=>{setInterviewNotes(current=>({...current,[questionId]:value}));void syncPatch({interviewNotes:{[questionId]:value}});onNotify('面试准备已同步给老师');};
   const feedbackCount=recommended.filter(mentor=>feedback[mentor.id]||feedbackNotes[mentor.id]?.trim()).length;
   return <div className="portal-shell"><header className="portal-header"><Brand portal/><div className="portal-header-actions">{preview&&<span className="portal-session-mark"><Eye size={13}/>老师预览</span>}<button onClick={onExit}>{preview?'返回老师端':'退出学生端'} <X size={15}/></button><LanguageLayer inline/></div></header><main className="portal-main"><div className="portal-welcome"><div><span className="portal-kicker">{studentName}的服务项目</span><h1>你好，{studentName}</h1><p>老师已经把导师事实、推荐依据和反馈入口整理在一起。</p></div><span className="portal-progress"><b>38%</b><small>整体进度</small></span></div><div className="portal-next-step"><div><span>当前下一步</span><strong>完成导师推荐反馈</strong><small>你的完整反馈会同步回选导老师工作台。</small></div><div className="portal-next-progress"><b>{feedbackCount}/{recommended.length}</b><span>导师已反馈</span><i><em style={{width:`${recommended.length?feedbackCount/recommended.length*100:0}%`}}></em></i></div></div><nav className="portal-tabs">{['总览','导师推荐','套磁管理','文书材料','面试准备','申请进度','签证','PhDHub工具'].map(x=><button className={tab===x?'active':''} aria-current={tab===x?'page':undefined} key={x} onClick={()=>setTab(x)}>{x}{x==='导师推荐'&&<b className="portal-tab-count">{feedbackCount}/{recommended.length}</b>}</button>)}</nav>{tab==='导师推荐'?<StudentMentorView student={{name:studentName,target:studentTarget}} mentors={recommended} sent={true} onNotify={onNotify} feedback={feedback} onFeedback={recordFeedback} feedbackNotes={feedbackNotes} onFeedbackNote={submitMentorFeedback} studentNote={studentNote} onStudentNoteSubmit={submitStudentNote}/>:tab==='套磁管理'?<StudentOutreachManager mentors={recommended} feedback={feedback} onNotify={onNotify}/>:tab==='面试准备'?<StudentInterviewPrep notes={interviewNotes} onSave={saveInterviewNote} onNotify={onNotify}/>:tab==='PhDHub工具'?<StudentPhdHubView student={{name:studentName,target:studentTarget}} mentors={recommended} feedback={feedback} feedbackNotes={feedbackNotes} interviewNotes={interviewNotes} onSaveInterviewNote={saveInterviewNote} onNotify={onNotify} activeModule={phdHubTab} setActiveModule={setPhdHubTab} caseId={caseId}/>:<PortalOverview tab={tab}/>} {tab!=='PhDHub工具'&&<FileUploadPanel caseId={caseId} uploadedBy={`学生 · ${studentName}`} title="我的材料与共享文件"/>}</main></div>;
+}
+
+function StudentPortal({onExit, onNotify, preview=false, student=DEMO_STUDENT}) {
+  const studentId=student.id||DEMO_STUDENT.id;
+  const caseId=`student-${studentId}`;
+  const [tab,setTab]=useState('总览');
+  const [feedback,setFeedback]=useState({});
+  const [feedbackNotes,setFeedbackNotes]=useState({});
+  const [interviewNotes,setInterviewNotes]=useState({});
+  const [studentNote,setStudentNote]=useState('');
+  const [portalMentors,setPortalMentors]=useState(mentors);
+  const [mentorFieldOverrides,setMentorFieldOverrides]=useState({});
+  const [phdHubTab,setPhdHubTab]=useState('dashboard');
+  const studentName=student.name||DEMO_STUDENT.name;
+  const studentTarget=student.target||DEMO_STUDENT.target;
+
+  useEffect(()=>{
+    apiRequest(`/api/case-state?caseId=${encodeURIComponent(caseId)}`).then(data=>{
+      setFeedback(data.state?.feedback||{});
+      setFeedbackNotes(data.state?.feedbackNotes||{});
+      setInterviewNotes(data.state?.interviewNotes||{});
+      setStudentNote(data.state?.studentNote||'');
+      setMentorFieldOverrides(data.state?.mentorFieldOverrides||{});
+    }).catch(()=>{});
+  },[caseId]);
+
+  useEffect(()=>{
+    apiRequest(`/api/vika/sync?studentId=${encodeURIComponent(studentId)}`).then(data=>{
+      if(data.mentors?.length)setPortalMentors(data.mentors);
+    }).catch(()=>{});
+  },[studentId]);
+
+  const syncPatch=patch=>persistCaseState(caseId,patch,preview?'老师预览':'学生').catch(()=>onNotify('状态暂时未同步，请稍后重试'));
+  const activePortalMentors=portalMentors.map(mentor=>applyMentorFieldOverrides(mentor,mentorFieldOverrides));
+  const recommended=activePortalMentors.slice(0,4);
+  const recordFeedback=(mentor,choice)=>{setFeedback(current=>({...current,[mentor.id]:choice}));void syncPatch({feedback:{[mentor.id]:choice}});onNotify(`已记录 ${mentor.name} 的${feedbackMeta(choice)?.label||'反馈'}`);};
+  const submitMentorFeedback=(mentorId,value)=>{const mentor=recommended.find(item=>item.id===mentorId);setFeedbackNotes(current=>({...current,[mentorId]:value}));void syncPatch({feedbackNotes:{[mentorId]:value}});onNotify(`已保存 ${mentor?.name||'导师'} 的具体反馈`);};
+  const submitStudentNote=value=>{setStudentNote(value);void syncPatch({studentNote:value});onNotify('反馈已提交给选导老师');};
+  const saveInterviewNote=(questionId,value)=>{setInterviewNotes(current=>({...current,[questionId]:value}));void syncPatch({interviewNotes:{[questionId]:value}});onNotify('面试准备已同步给老师');};
+  const saveMentorField=(mentor,label,value)=>{
+    const key=mentorOverrideKey(mentor);
+    setMentorFieldOverrides(current=>({...current,[key]:{...(current[key]||{}),[label]:value}}));
+    void syncPatch({mentorFieldOverrides:{[key]:{[label]:value}}});
+    onNotify(`${label}已保存到系统`);
+  };
+  const feedbackCount=recommended.filter(mentor=>feedback[mentor.id]||feedbackNotes[mentor.id]?.trim()).length;
+
+  return <div className="portal-shell">
+    <header className="portal-header">
+      <Brand portal/>
+      <div className="portal-header-actions">
+        {preview&&<span className="portal-session-mark"><Eye size={13}/>老师预览</span>}
+        <button onClick={onExit}>{preview?'返回老师端':'退出学生端'} <X size={15}/></button>
+        <LanguageLayer inline/>
+        <span className="portal-user-chip" title={`${studentName} · ${studentTarget}`}><i>{studentName.slice(0,1)}</i><b>{studentName}</b></span>
+      </div>
+    </header>
+    <main className="portal-main portal-main-compact">
+      <nav className="portal-tabs">{['总览','导师推荐','套磁管理','文书材料','面试准备','申请进度','签证','PhDHub工具'].map(x=><button className={tab===x?'active':''} aria-current={tab===x?'page':undefined} key={x} onClick={()=>setTab(x)}>{x}{x==='导师推荐'&&<b className="portal-tab-count">{feedbackCount}/{recommended.length}</b>}</button>)}</nav>
+      {tab==='导师推荐'?<StudentMentorView student={{name:studentName,target:studentTarget}} mentors={recommended} sent={true} onNotify={onNotify} feedback={feedback} onFeedback={recordFeedback} feedbackNotes={feedbackNotes} onFeedbackNote={submitMentorFeedback} onFieldChange={saveMentorField} studentNote={studentNote} onStudentNoteSubmit={submitStudentNote}/>:tab==='套磁管理'?<StudentOutreachManager mentors={recommended} feedback={feedback} onNotify={onNotify}/>:tab==='面试准备'?<StudentInterviewPrep notes={interviewNotes} onSave={saveInterviewNote} onNotify={onNotify}/>:tab==='PhDHub工具'?<StudentPhdHubView student={{name:studentName,target:studentTarget}} mentors={recommended} feedback={feedback} feedbackNotes={feedbackNotes} interviewNotes={interviewNotes} onSaveInterviewNote={saveInterviewNote} onNotify={onNotify} activeModule={phdHubTab} setActiveModule={setPhdHubTab} caseId={caseId}/>:<PortalOverview tab={tab}/>}
+      {tab!=='PhDHub工具'&&<FileUploadPanel caseId={caseId} uploadedBy={`学生 · ${studentName}`} title="我的材料与共享文件"/>}
+    </main>
+  </div>;
 }
 
 function PortalOverview({tab}) {
@@ -864,7 +927,7 @@ function VikaGridLegacy({mentors, fields, selected, toggle, filterText, setFilte
   return <div className="vika-grid-view"><div className="vika-grid-toolbar"><div className="grid-source"><Table2 size={15}/><strong>Vika 多维表格视图</strong><span>{fieldRows.length} 个字段 · {visible.length}/{mentors.length} 条</span></div><label className="grid-search"><Search size={14}/><input value={filterText} onChange={e=>setFilterText(e.target.value)} placeholder="搜索字段值..."/></label><select value={filterField} onChange={e=>setFilterField(e.target.value)}><option value="__all">全部字段</option>{fieldRows.map(field=><option key={field.name} value={field.name}>{field.name}</option>)}</select></div><div className="vika-table-scroll"><table className="vika-table"><thead><tr><th className="pin-col">方案</th>{fieldRows.map(field=><th key={field.name} title={`${field.name} · ${field.type}`}>{field.name}</th>)}</tr></thead><tbody>{visible.map(mentor=><tr className={selected.includes(mentor.id)?'selected-row':''} key={mentor.id}><td className="pin-col"><button className={selected.includes(mentor.id)?'grid-select selected':'grid-select'} onClick={()=>toggle(mentor.id)}>{selected.includes(mentor.id)?<Check size={13}/>:<Plus size={13}/>}<span>{selected.includes(mentor.id)?'已选':'选入'}</span></button></td>{fieldRows.map(field=><td key={field.name} title={formatFieldValue(mentor.rawFields?.[field.name])}>{formatFieldValue(mentor.rawFields?.[field.name])}</td>)}</tr>)}</tbody></table></div>{!visible.length&&<div className="grid-empty"><ListFilter size={20}/><p>没有符合筛选条件的导师记录</p></div>}</div>;
 }
 
-function VikaGrid({mentors, fields, selected, toggle, filterText, setFilterText, filterField, setFilterField, onOpenRecord}) {
+function VikaGrid({mentors, fields, selected, toggle, filterText, setFilterText, filterField, setFilterField, onOpenRecord, onFieldChange}) {
   const fieldRows=Array.from(new Map((fields.length?fields:Object.keys(mentors[0]?.rawFields||{}).map(name=>({name,type:'Text'}))).map(field=>[field.name,field])).values());
   const [hiddenFields,setHiddenFields]=useState([]); const [showFields,setShowFields]=useState(false); const [sortField,setSortField]=useState('__fit'); const [sortAsc,setSortAsc]=useState(false); const [selectedOnly,setSelectedOnly]=useState(false); const [detailMentor,setDetailMentor]=useState(null);
   const openRecord=onOpenRecord||setDetailMentor;
@@ -885,7 +948,7 @@ function VikaGrid({mentors, fields, selected, toggle, filterText, setFilterText,
     <div className="vika-grid-toolbar"><div className="grid-source"><Table2 size={15}/><strong>Vika 多维表格视图</strong><span>{fieldRows.length} 个字段 · {visible.length}/{mentors.length} 条</span></div><label className="grid-search"><Search size={14}/><input value={filterText} onChange={e=>setFilterText(e.target.value)} placeholder="搜索字段值..."/></label><select value={filterField} onChange={e=>setFilterField(e.target.value)} aria-label="搜索字段"><option value="__all">全部字段</option>{fieldRows.map(field=><option key={field.name} value={field.name}>{field.name}</option>)}</select><select value={sortField} onChange={e=>setSortField(e.target.value)} aria-label="表格排序"><option value="__fit">匹配度</option>{fieldRows.map(field=><option key={field.name} value={field.name}>{field.name}</option>)}</select><button className={`grid-tool-button ${sortAsc?'ascending':''}`} onClick={()=>setSortAsc(value=>!value)} title="切换排序方向"><ArrowRight size={14}/>排序</button><button className={`grid-tool-button ${selectedOnly?'active':''}`} onClick={()=>setSelectedOnly(value=>!value)}><Check size={13}/>只看已选</button><button className={`grid-tool-button ${showFields?'active':''}`} aria-expanded={showFields} onClick={()=>setShowFields(value=>!value)}><ListFilter size={13}/>字段 {visibleFields.length}/{fieldRows.length}<ChevronDown size={13}/></button></div>
     {showFields&&<section className="grid-field-picker" aria-label="字段展示设置"><div className="grid-field-picker-head"><div><span className="grid-field-picker-icon"><ListFilter size={17}/></span><span><strong>字段展示</strong><small>按工作阶段保留重点信息，原始数据不会被删除</small></span></div><div className="grid-field-actions"><button type="button" onClick={showCoreFields}>核心字段</button><button type="button" onClick={()=>setHiddenFields([])}>全部显示</button></div></div><div className="grid-field-status"><span><Eye size={13}/>当前显示 <b>{visibleFields.length}</b> / {fieldRows.length} 个字段</span><i><em style={{width:`${fieldRows.length?visibleFields.length/fieldRows.length*100:0}%`}}/></i></div><div className="grid-field-groups">{fieldGroups.map(([label,rows])=>rows.length?<section key={label}><header><strong>{label}</strong><span>{rows.filter(field=>!hiddenFields.includes(field.name)).length}/{rows.length}</span></header><div>{rows.map(field=>{const active=!hiddenFields.includes(field.name);return <button type="button" key={field.name} className={active?'active':''} aria-pressed={active} onClick={()=>toggleField(field.name)}><span>{active?<Check size={13}/>:<Plus size={13}/>}</span>{field.name}</button>})}</div></section>:null)}</div></section>}
     <div className="grid-scroll-hint" role="note"><ArrowRight size={13}/><span>点击任意记录查看完整字段详情，长内容可悬停查看</span></div><div className="vika-table-scroll" aria-label="Vika 多维表格，当前窗口完整展示全部字段"><table className="vika-table"><thead><tr><th className="pin-col">方案</th>{visibleFields.map(field=><th key={field.name} title={`${field.name} · ${field.type}`}>{field.name}</th>)}</tr></thead><tbody>{visible.map(mentor=><tr className={`${selected.includes(mentor.id)?'selected-row ':''}record-clickable`} key={mentor.id} tabIndex={0} onClick={()=>openRecord(mentor)} onKeyDown={event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openRecord(mentor);}}}><td className="pin-col"><button className={selected.includes(mentor.id)?'grid-select selected':'grid-select'} onClick={event=>{event.stopPropagation();toggle(mentor.id)}}>{selected.includes(mentor.id)?<Check size={13}/>:<Plus size={13}/>}<span>{selected.includes(mentor.id)?'已选':'选入'}</span></button></td>{visibleFields.map(field=><td key={field.name} title={formatFieldValue(mentor.rawFields?.[field.name])}>{formatFieldValue(mentor.rawFields?.[field.name])}</td>)}</tr>)}</tbody></table></div>{!visible.length&&<div className="grid-empty"><ListFilter size={20}/><p>没有符合筛选条件的导师记录</p></div>}
-  </div>{!onOpenRecord&&<MentorRecordDrawer mentor={detailMentor} onClose={()=>setDetailMentor(null)} selected={selected?.includes(detailMentor?.id)} onToggle={toggle}/>}</>;
+  </div>{!onOpenRecord&&<MentorRecordDrawer mentor={detailMentor} onClose={()=>setDetailMentor(null)} selected={selected?.includes(detailMentor?.id)} onToggle={toggle} onFieldChange={onFieldChange}/>}</>;
 }
 
 const demoMentorNotes={
@@ -927,6 +990,27 @@ function formatFieldValue(value) {
 
 function mentorField(mentor, fieldName) {
   return formatFieldValue(mentor.rawFields?.[fieldName]);
+}
+
+function mentorOverrideKey(mentor) {
+  return String(mentor?.recordId || mentor?.id || '');
+}
+
+function applyMentorFieldOverrides(mentor, overrides={}) {
+  const rawFields={...(mentor.rawFields||{}),...(overrides[mentorOverrideKey(mentor)]||{})};
+  return {
+    ...mentor,
+    rawFields,
+    name:rawFields['导师']||mentor.name,
+    school:rawFields['学校名字']||mentor.school,
+    dept:rawFields.Department||mentor.dept,
+    topic:rawFields['导师研究领域']||mentor.topic,
+    open:rawFields['招生窗口']||rawFields['状态']||mentor.open,
+    ranking:{
+      qs:rawFields['QS排名']||mentor.ranking?.qs,
+      usnews:rawFields['美国USNEWS排名']||mentor.ranking?.usnews
+    }
+  };
 }
 
 function mentorRankings(mentor) {
@@ -995,21 +1079,32 @@ function MentorFeedbackComposer({mentor,value,onSave}) {
   return <div className="mentor-feedback-box"><div className="mentor-feedback-box-head"><span><MessageSquare size={13}/>给这位导师的具体反馈</span>{value?<b>已保存</b>:<small>可选，但建议填写</small>}</div><textarea value={draft} onChange={event=>setDraft(event.target.value)} placeholder="写下你选择或暂不考虑这位导师的具体原因..." aria-label={`${mentor.name} 的具体反馈`}/><div className="mentor-feedback-box-actions"><small>{dirty?'修改尚未保存':value?'老师会根据这条反馈制定下一步策略':'具体原因会帮助老师更准确地安排套磁顺序'}</small>{dirty&&<button type="button" onClick={()=>onSave(mentor.id,draft.trim())}><Check size={12}/>保存此位导师反馈</button>}</div></div>;
 }
 
-function MentorRecordDrawer({mentor,onClose,studentMode=false,selected=false,onToggle,feedback={},feedbackNotes={},notes={},onFeedback,onFeedbackNote,onNoteChange}) {
+function MentorRecordDrawer({mentor,onClose,studentMode=false,selected=false,onToggle,feedback={},feedbackNotes={},notes={},onFeedback,onFeedbackNote,onNoteChange,onFieldChange}) {
+  const mentorKey=mentorOverrideKey(mentor);
+  const [draftFields,setDraftFields]=useState({});
+  const [savedFields,setSavedFields]=useState({});
+  const [lastSavedField,setLastSavedField]=useState('');
+  useEffect(()=>{
+    const next=Object.fromEntries(Object.entries(mentor?.rawFields||{}).map(([label,value])=>[label,formatFieldValue(value)==='—'?'':formatFieldValue(value)]));
+    setDraftFields(next);
+    setSavedFields(next);
+    setLastSavedField('');
+  },[mentorKey,mentor?.rawFields]);
   if(!mentor)return null;
   const selectedFeedback=feedbackMeta(feedback[mentor.id]);
   const note=mentorRecommendationNote(mentor,notes);
   const entries=Object.entries(mentor.rawFields||{});
-  const renderValue=value=>{
-    const text=formatFieldValue(value);
-    const isLink=/^https?:\/\//.test(text);
-    return isLink?<a href={text} target="_blank" rel="noreferrer" title={text}>{text}</a>:text;
+  const saveField=(label,value)=>{
+    if(onFieldChange)onFieldChange(mentor,label,value);
+    else window.dispatchEvent(new CustomEvent('mentor-field-change',{detail:{mentor,label,value}}));
+    setSavedFields(current=>({...current,[label]:value}));
+    setLastSavedField(label);
   };
   return <div className="mentor-record-backdrop" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)onClose()}}><aside className={`mentor-record-drawer${studentMode?' student':''}`} role="dialog" aria-modal="true" aria-label={`${mentor.name} 记录详情`} onMouseDown={event=>event.stopPropagation()}>
     <header className="mentor-record-head"><div><span className="mentor-record-kicker"><Table2 size={14}/>多维记录详情</span><h2>{mentor.name}</h2><p>{mentor.school} · {mentor.dept} · {mentorField(mentor,'Location')}</p></div><button type="button" className="mentor-record-close" onClick={onClose} aria-label="关闭详情"><X size={18}/></button></header>
     <div className="mentor-record-tabs"><span className="active">详情</span><span>字段历史</span><span>打印视图</span></div>
-    <div className="mentor-record-body"><div className="mentor-record-summary"><div><small>匹配度</small><strong>{mentor.fit}%</strong></div><div><small>QS 排名</small><strong>{mentorRankings(mentor).qs}</strong></div><div><small>招生窗口</small><strong>{mentor.open||'待确认'}</strong></div><div><small>当前反馈</small><strong>{selectedFeedback?.label||'待反馈'}</strong></div></div><section className="mentor-record-section"><div className="mentor-record-section-head"><h3>全部字段</h3><span>{entries.length} 个字段</span></div><div className="mentor-record-fields">{entries.map(([label,value])=><div key={label}><span>{label}</span><strong>{renderValue(value)}</strong></div>)}</div></section><section className="mentor-record-section mentor-record-note-section"><div className="mentor-record-section-head"><h3>{studentMode?'老师给你的推荐备注':'推荐备注'}</h3><span>{studentMode?'学生可见':'可同步给学生'}</span></div>{studentMode?<MentorNoteReadonly note={note}/>:<MentorNoteEditor mentor={mentor} note={note} onChange={onNoteChange||(()=>{})}/>}</section>{studentMode&&<section className="mentor-record-section"><div className="mentor-record-section-head"><h3>学生反馈</h3><span>{selectedFeedback?'已记录':'请选择一个推进批次'}</span></div><div className="mentor-record-feedback-actions">{feedbackOptions.map(option=><button type="button" key={option.id} className={selectedFeedback?.id===option.id?`selected ${option.tone}`:''} onClick={()=>onFeedback?.(mentor,option.id)}>{option.id==='first'&&<Star size={14}/>} {option.label}</button>)}</div><MentorFeedbackComposer mentor={mentor} value={feedbackNotes[mentor.id]||''} onSave={onFeedbackNote||(()=>{})}/></section>}</div>
-    <footer className="mentor-record-footer">{studentMode?<span><Eye size={14}/>学生端可查看全部字段和老师备注</span>:<button type="button" className={selected?'selected':''} onClick={()=>onToggle?.(mentor.id)}>{selected?<><Check size={14}/>已加入推荐方案</>:<><Plus size={14}/>加入推荐方案</>}</button>}<button type="button" className="mentor-record-footer-close" onClick={onClose}>完成</button></footer>
+    <div className="mentor-record-body"><div className="mentor-record-summary"><div><small>匹配度</small><strong>{mentor.fit}%</strong></div><div><small>QS 排名</small><strong>{mentorRankings(mentor).qs}</strong></div><div><small>招生窗口</small><strong>{mentor.open||'待确认'}</strong></div><div><small>当前反馈</small><strong>{selectedFeedback?.label||'待反馈'}</strong></div></div><section className="mentor-record-section"><div className="mentor-record-section-head"><h3>全部字段</h3><span>{entries.length} 个字段 · 均可编辑</span></div><div className="mentor-record-fields editable">{entries.map(([label,value])=>{const original=savedFields[label]??(formatFieldValue(value)==='—'?'':formatFieldValue(value));const draft=draftFields[label]??original;const dirty=draft!==original;const isLink=/^https?:\/\//.test(draft.trim());return <label key={label}><span>{label}</span><div className="mentor-record-field-control"><textarea rows={draft.length>100||draft.includes('\n')?3:1} value={draft} onChange={event=>{setDraftFields(current=>({...current,[label]:event.target.value}));setLastSavedField('')}} aria-label={`编辑${label}`}/><div><span>{lastSavedField===label&&!dirty?<><Check size={11}/>已保存到系统</>:dirty?'修改尚未保存':'已同步'}</span>{isLink&&<a href={draft.trim()} target="_blank" rel="noreferrer"><ExternalLink size={11}/>打开链接</a>}<button type="button" disabled={!dirty} onClick={()=>saveField(label,draft)}><Check size={12}/>保存</button></div></div></label>})}</div></section><section className="mentor-record-section mentor-record-note-section"><div className="mentor-record-section-head"><h3>{studentMode?'老师给你的推荐备注':'推荐备注'}</h3><span>{studentMode?'学生可见':'可同步给学生'}</span></div>{studentMode?<MentorNoteReadonly note={note}/>:<MentorNoteEditor mentor={mentor} note={note} onChange={onNoteChange||(()=>{})}/>}</section>{studentMode&&<section className="mentor-record-section"><div className="mentor-record-section-head"><h3>学生反馈</h3><span>{selectedFeedback?'已记录':'请选择一个推进批次'}</span></div><div className="mentor-record-feedback-actions">{feedbackOptions.map(option=><button type="button" key={option.id} className={selectedFeedback?.id===option.id?`selected ${option.tone}`:''} onClick={()=>onFeedback?.(mentor,option.id)}>{option.id==='first'&&<Star size={14}/>} {option.label}</button>)}</div><MentorFeedbackComposer mentor={mentor} value={feedbackNotes[mentor.id]||''} onSave={onFeedbackNote||(()=>{})}/></section>}</div>
+    <footer className="mentor-record-footer">{studentMode?<span><PenLine size={14}/>全部字段修改后保存到系统侧</span>:<button type="button" className={selected?'selected':''} onClick={()=>onToggle?.(mentor.id)}>{selected?<><Check size={14}/>已加入推荐方案</>:<><Plus size={14}/>加入推荐方案</>}</button>}<button type="button" className="mentor-record-footer-close" onClick={onClose}>完成</button></footer>
   </aside></div>;
 }
 
@@ -1075,14 +1170,16 @@ function MentorBoardInteractive({mentors,selected=[],toggle=()=>{},feedback={},s
   return <div className="mentor-board" aria-label="导师反馈看板"><p className="board-drag-hint"><GitCompareArrows size={13}/>拖动卡片到其他列，即可切换状态</p>{columns.map(column=>{const rows=mentors.filter(mentor=>statusOf(mentor)===column.id);return <section className={`mentor-board-column ${column.tone}${dragOverColumn===column.id?' drag-over':''}`} key={column.id} onDragOver={event=>{event.preventDefault();setDragOverColumn(column.id)}} onDragLeave={event=>{if(!event.currentTarget.contains(event.relatedTarget))setDragOverColumn('')}} onDrop={event=>{event.preventDefault();const mentorId=Number(event.dataTransfer.getData('text/plain'))||draggedMentorId;moveMentor(mentorId,column.id)}}><header><div><strong>{column.label}</strong><small>{column.hint}</small></div><b>{rows.length}</b></header><div className="mentor-board-list">{rows.map(mentor=>{const ranking=mentorRankings(mentor);const choice=feedbackMeta(choiceByColumn[statusOf(mentor)]);return <article key={mentor.id} draggable className={`${onOpenRecord?'board-record-card ':''}${draggedMentorId===mentor.id?'dragging':''}`} role={onOpenRecord?'button':undefined} tabIndex={onOpenRecord?0:undefined} aria-grabbed={draggedMentorId===mentor.id} onDragStart={event=>{if(event.target.closest('button,a,input,select,textarea')){event.preventDefault();return;}setDraggedMentorId(mentor.id);event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',String(mentor.id))}} onDragEnd={()=>{setDraggedMentorId(null);setDragOverColumn('')}} onClick={()=>openRecord(mentor)} onKeyDown={event=>handleCardKeyDown(event,mentor)}><div className="board-card-head"><span className="mentor-avatar">{mentor.name.split(' ').slice(-1)[0][0]}</span><div><strong>{mentor.name}</strong><small>{mentor.school}</small></div><b>{mentor.fit}%</b></div><p>{mentor.dept} · {mentor.topic}</p><div className="mentor-facts"><span>QS {ranking.qs}</span><span>US News {ranking.usnews}</span><span>{mentorField(mentor,'Location')}</span></div><MentorLinks mentor={mentor}/>{studentMode?<><div className="board-record-state"><MessageSquare size={12}/>{choice?.label||'待反馈'}</div><button type="button" className="board-action" onClick={event=>{event.stopPropagation();openRecord(mentor)}}><Eye size={13}/>查看详情</button></>:<button type="button" className={selected.includes(mentor.id)?'board-action selected':'board-action'} onClick={event=>{event.stopPropagation();toggle(mentor.id)}}>{selected.includes(mentor.id)?<><Check size={13}/>已在方案</>:<><Plus size={13}/>加入方案</>}</button>}</article>})}</div>{!rows.length&&<div className="board-empty">暂无导师</div>}</section>})}</div>;
 }
 
-function StudentMentorTableWithDrawer({mentors,feedback={},feedbackNotes={},notes={},onFeedback,onFeedbackNote}) {
+function StudentMentorTableWithDrawer({mentors,feedback={},feedbackNotes={},notes={},onFeedback,onFeedbackNote,onFieldChange}) {
   const [detailMentor,setDetailMentor]=useState(null);
-  return <><StudentMentorTable mentors={mentors} feedback={feedback} onOpenRecord={setDetailMentor}/><MentorRecordDrawer mentor={detailMentor} onClose={()=>setDetailMentor(null)} studentMode selected={false} feedback={feedback} feedbackNotes={feedbackNotes} notes={notes} onFeedback={onFeedback} onFeedbackNote={onFeedbackNote}/></>;
+  const liveMentor=mentors.find(item=>mentorOverrideKey(item)===mentorOverrideKey(detailMentor))||detailMentor;
+  return <><StudentMentorTable mentors={mentors} feedback={feedback} onOpenRecord={setDetailMentor}/><MentorRecordDrawer mentor={liveMentor} onClose={()=>setDetailMentor(null)} studentMode selected={false} feedback={feedback} feedbackNotes={feedbackNotes} notes={notes} onFeedback={onFeedback} onFeedbackNote={onFeedbackNote} onFieldChange={onFieldChange}/></>;
 }
 
-function MentorBoardWithDrawer({studentMode=false,feedback={},feedbackNotes={},notes={},onFeedback,onFeedbackNote,onNoteChange,...props}) {
+function MentorBoardWithDrawer({studentMode=false,feedback={},feedbackNotes={},notes={},onFeedback,onFeedbackNote,onNoteChange,onFieldChange,...props}) {
   const [detailMentor,setDetailMentor]=useState(null);
-  return <><MentorBoardInteractive {...props} studentMode={studentMode} feedback={feedback} onFeedback={onFeedback} onOpenRecord={setDetailMentor}/><MentorRecordDrawer mentor={detailMentor} onClose={()=>setDetailMentor(null)} studentMode={studentMode} selected={props.selected?.includes(detailMentor?.id)} onToggle={props.toggle} feedback={feedback} feedbackNotes={feedbackNotes} notes={notes} onFeedback={onFeedback} onFeedbackNote={onFeedbackNote} onNoteChange={onNoteChange}/></>;
+  const liveMentor=props.mentors?.find(item=>mentorOverrideKey(item)===mentorOverrideKey(detailMentor))||detailMentor;
+  return <><MentorBoardInteractive {...props} studentMode={studentMode} feedback={feedback} onFeedback={onFeedback} onOpenRecord={setDetailMentor}/><MentorRecordDrawer mentor={liveMentor} onClose={()=>setDetailMentor(null)} studentMode={studentMode} selected={props.selected?.includes(liveMentor?.id)} onToggle={props.toggle} feedback={feedback} feedbackNotes={feedbackNotes} notes={notes} onFeedback={onFeedback} onFeedbackNote={onFeedbackNote} onNoteChange={onNoteChange} onFieldChange={onFieldChange}/></>;
 }
 
 const MentorBoardView = MentorBoardWithDrawer;
@@ -1107,13 +1204,15 @@ function MentorCard({mentor,selected,toggle,note,onNoteChange,feedback,feedbackN
 }
 
 function MentorWorkspace({onNotify}) {
-  const [studentId,setStudentId]=useState(1); const [selected,setSelected]=useState([1,2]); const [preview,setPreview]=useState(false); const [sent,setSent]=useState(false); const [synced,setSynced]=useState(false); const [displayMode,setDisplayMode]=useState('cards'); const [filterText,setFilterText]=useState(''); const [filterField,setFilterField]=useState('__all'); const [quickFilter,setQuickFilter]=useState('all'); const [sortMode,setSortMode]=useState('fit'); const [mentorNotes,setMentorNotes]=useState(mentorNotesSeed); const [studentFeedback,setStudentFeedback]=useState({}); const [studentFeedbackNotes,setStudentFeedbackNotes]=useState({}); const [studentNote,setStudentNote]=useState(''); const [vika,setVika]=useState({status:'loading',mentors:[],fields:[],total:0,syncedAt:''});
+  const [studentId,setStudentId]=useState(1); const [selected,setSelected]=useState([1,2]); const [preview,setPreview]=useState(false); const [sent,setSent]=useState(false); const [synced,setSynced]=useState(false); const [displayMode,setDisplayMode]=useState('cards'); const [filterText,setFilterText]=useState(''); const [filterField,setFilterField]=useState('__all'); const [quickFilter,setQuickFilter]=useState('all'); const [sortMode,setSortMode]=useState('fit'); const [mentorNotes,setMentorNotes]=useState(mentorNotesSeed); const [studentFeedback,setStudentFeedback]=useState({}); const [studentFeedbackNotes,setStudentFeedbackNotes]=useState({}); const [studentNote,setStudentNote]=useState(''); const [mentorFieldOverrides,setMentorFieldOverrides]=useState({}); const [vika,setVika]=useState({status:'loading',mentors:[],fields:[],total:0,syncedAt:''});
   const loadVika=(force=false)=>{const params=new URLSearchParams({studentId:String(studentId)});if(force)params.set('force','1');return apiRequest(`/api/vika/sync?${params}`).then(data=>{if(data.mentors)setVika({status:'ready',mentors:data.mentors,fields:data.fields||[],total:data.total,syncedAt:data.syncedAt,sourceUrl:data.sourceUrl});else setVika({status:'error',mentors:[],fields:[],total:0,error:data.error});}).catch(error=>setVika({status:'error',mentors:[],fields:[],total:0,error:error.message}));};
   useEffect(()=>{setVika(current=>({...current,status:'loading',mentors:[]}));loadVika();const timer=setInterval(loadVika,5*60*1000);return()=>clearInterval(timer);},[studentId]);
-  const student=caseStudents.find(s=>s.id===studentId); const caseId=`student-${studentId}`; const activeMentors=vika.mentors.length?vika.mentors:mentors;
-  const loadCaseState=()=>apiRequest(`/api/case-state?caseId=${encodeURIComponent(caseId)}`).then(data=>{const state=data.state||{};setMentorNotes(current=>({...current,...(state.notes||{})}));setStudentFeedback(state.feedback||{});setStudentFeedbackNotes(state.feedbackNotes||{});setStudentNote(state.studentNote||'');if(Array.isArray(state.selectedMentorIds))setSelected(state.selectedMentorIds);setSent(Boolean(state.sent));}).catch(()=>{});
+  const student=caseStudents.find(s=>s.id===studentId); const caseId=`student-${studentId}`; const activeMentors=(vika.mentors.length?vika.mentors:mentors).map(mentor=>applyMentorFieldOverrides(mentor,mentorFieldOverrides));
+  const loadCaseState=()=>apiRequest(`/api/case-state?caseId=${encodeURIComponent(caseId)}`).then(data=>{const state=data.state||{};setMentorNotes(current=>({...current,...(state.notes||{})}));setStudentFeedback(state.feedback||{});setStudentFeedbackNotes(state.feedbackNotes||{});setStudentNote(state.studentNote||'');setMentorFieldOverrides(state.mentorFieldOverrides||{});if(Array.isArray(state.selectedMentorIds))setSelected(state.selectedMentorIds);setSent(Boolean(state.sent));}).catch(()=>{});
   useEffect(()=>{loadCaseState();const timer=setInterval(loadCaseState,5000);return()=>clearInterval(timer);},[caseId]);
   const syncPatch=patch=>persistCaseState(caseId,patch,'选导老师').catch(()=>onNotify('状态暂时未同步，请稍后重试'));
+  const saveMentorField=(mentor,label,value)=>{const key=mentorOverrideKey(mentor);setMentorFieldOverrides(current=>({...current,[key]:{...(current[key]||{}),[label]:value}}));void syncPatch({mentorFieldOverrides:{[key]:{[label]:value}}});onNotify(`${label}已保存到系统`);};
+  useEffect(()=>{const handler=event=>{const detail=event.detail||{};if(detail.mentor&&detail.label)saveMentorField(detail.mentor,detail.label,detail.value??'');};window.addEventListener('mentor-field-change',handler);return()=>window.removeEventListener('mentor-field-change',handler);},[caseId]);
   const filteredMentors=activeMentors.filter(mentor=>{const raw=mentor.rawFields||{};const values=Object.values(raw).map(formatFieldValue).concat([mentor.name,mentor.school,mentor.dept,mentor.topic,mentor.reason,mentor.open,mentorRecommendationNote(mentor,mentorNotes)]).join(' ').toLowerCase();const textMatch=!filterText||(filterField==='__all'?values:formatFieldValue(raw[filterField]).toLowerCase()).includes(filterText.toLowerCase());const links=mentorLinks(mentor).some(([,url])=>url);const quickMatch=quickFilter==='all'||(quickFilter==='selected'&&selected.includes(mentor.id))||(quickFilter==='links'&&links)||(quickFilter==='ranking'&&mentorRankings(mentor).qs!=='—');return textMatch&&quickMatch;}).sort((a,b)=>sortMode==='school'?a.school.localeCompare(b.school):sortMode==='open'?String(a.open).localeCompare(String(b.open),'zh-CN'):b.fit-a.fit);
   const toggle=id=>setSelected(ids=>{const next=ids.includes(id)?ids.filter(x=>x!==id):[...ids,id];const mentor=activeMentors.find(item=>item.id===id);void syncPatch({selectedMentorIds:next});if(mentor)onNotify(next.includes(id)?`已将 ${mentor.name} 加入推荐方案`:`已从推荐方案移除 ${mentor.name}`);return next;});
   const recordFeedback=(mentor,choice)=>{setStudentFeedback(current=>({...current,[mentor.id]:choice}));void syncPatch({feedback:{[mentor.id]:choice}});onNotify(`已记录 ${mentor.name} 的${feedbackMeta(choice)?.label||'反馈'}`);};
@@ -1221,7 +1320,7 @@ function StudentMentorViewCards({student,mentors,sent,onNotify,notes={},feedback
   </section>;
 }
 
-function StudentMentorView({student,mentors,sent,onNotify,notes={},feedback={},onFeedback,feedbackNotes={},onFeedbackNote,studentNote='',onStudentNoteSubmit}) {
+function StudentMentorView({student,mentors,sent,onNotify,notes={},feedback={},onFeedback,feedbackNotes={},onFeedbackNote,onFieldChange,studentNote='',onStudentNoteSubmit}) {
   const [view,setView]=useState('cards');
   const commonProps={student,mentors,sent,onNotify,notes,feedback,onFeedback,feedbackNotes,onFeedbackNote,studentNote,onStudentNoteSubmit};
   return <section className="student-multiview-shell">
@@ -1233,7 +1332,7 @@ function StudentMentorView({student,mentors,sent,onNotify,notes={},feedback={},o
         <button type="button" className={view==='board'?'active':''} onClick={()=>setView('board')}><LayoutList size={14}/>看板</button>
       </nav>
     </div>
-    {view==='table'?<StudentMentorTableWithDrawer mentors={mentors} feedback={feedback} feedbackNotes={feedbackNotes} notes={notes} onFeedback={onFeedback} onFeedbackNote={onFeedbackNote}/>:view==='board'?<MentorBoardWithDrawer mentors={mentors} studentMode feedback={feedback} feedbackNotes={feedbackNotes} notes={notes} onFeedback={onFeedback} onFeedbackNote={onFeedbackNote}/>:<StudentMentorViewCards {...commonProps}/>}
+    {view==='table'?<StudentMentorTableWithDrawer mentors={mentors} feedback={feedback} feedbackNotes={feedbackNotes} notes={notes} onFeedback={onFeedback} onFeedbackNote={onFeedbackNote} onFieldChange={onFieldChange}/>:view==='board'?<MentorBoardWithDrawer mentors={mentors} studentMode feedback={feedback} feedbackNotes={feedbackNotes} notes={notes} onFeedback={onFeedback} onFeedbackNote={onFeedbackNote} onFieldChange={onFieldChange}/>:<StudentMentorViewCards {...commonProps}/>}
   </section>;
 }
 

@@ -9,6 +9,7 @@ const EMPTY_STATE = {
   feedbackNotes: {},
   interviewNotes: {},
   outreachStages: {},
+  mentorFieldOverrides: {},
   studentNote: '',
   selectedMentorIds: [1, 2],
   sent: false,
@@ -48,7 +49,8 @@ function mergeState(current = {}, patch = {}, actor = '未标注') {
     feedback: { ...(current.feedback || {}) },
     feedbackNotes: { ...(current.feedbackNotes || {}) },
     interviewNotes: { ...(current.interviewNotes || {}) },
-    outreachStages: { ...(current.outreachStages || {}) }
+    outreachStages: { ...(current.outreachStages || {}) },
+    mentorFieldOverrides: { ...(current.mentorFieldOverrides || {}) }
   };
 
   if (patch.notes && typeof patch.notes === 'object') {
@@ -68,6 +70,15 @@ function mergeState(current = {}, patch = {}, actor = '未标注') {
       const stage = String(value || 'draft');
       return [String(mentorId).slice(0, 120), OUTREACH_STAGES.has(stage) ? stage : 'draft'];
     }));
+  }
+  if (patch.mentorFieldOverrides && typeof patch.mentorFieldOverrides === 'object') {
+    const merged = { ...next.mentorFieldOverrides };
+    for (const [mentorId, fields] of Object.entries(patch.mentorFieldOverrides)) {
+      if (!fields || typeof fields !== 'object' || Array.isArray(fields)) continue;
+      const key = String(mentorId).slice(0, 160);
+      merged[key] = Object.fromEntries(Object.entries({ ...(merged[key] || {}), ...fields }).map(([field, value]) => [String(field).slice(0, 160), String(value ?? '').slice(0, 12000)]));
+    }
+    next.mentorFieldOverrides = merged;
   }
   if (typeof patch.studentNote === 'string') next.studentNote = patch.studentNote.slice(0, 4000);
   if (Array.isArray(patch.selectedMentorIds)) next.selectedMentorIds = patch.selectedMentorIds.filter(Number.isFinite).slice(0, 50);

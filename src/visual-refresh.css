@@ -777,6 +777,10 @@ body { background: #f6f6ef; }
 .language-switch.inline { position: static; flex: none; backdrop-filter: none; }
 .portal-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-width: 0; }
 .portal-header-actions > button:not(.language-switch) { height: 30px; border: 0; background: transparent; color: #758188; font-size: 12px; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.portal-user-chip { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 4px 10px 4px 5px; border: 1px solid #eadfca; border-radius: 999px; background: #fff8e9; color: var(--dog-brown); box-shadow: 2px 2px 0 #ffd8c5; }
+.portal-user-chip i { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--spots-yellow); color: var(--spots-ink); font-size: 12px; font-style: normal; font-weight: 900; }
+.portal-user-chip b { max-width: 100px; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.portal-main-compact { padding-top: 28px; }
 @media (min-width: 761px) and (max-width: 1100px) {
   .topbar { padding: 0 14px; gap: 10px; }
   .search { width: auto; min-width: 180px; flex: 1; margin: 0; }
@@ -2798,6 +2802,18 @@ body { background-color: #f0e0ca; background-image: radial-gradient(rgba(33, 29,
 .mentor-record-fields > div > strong { min-width: 0; color: #5f5148; font-size: 12px; font-weight: 600; line-height: 1.65; overflow-wrap: anywhere; white-space: pre-wrap; }
 .mentor-record-fields a { color: #3671c9; text-decoration: none; }
 .mentor-record-fields a:hover { text-decoration: underline; }
+.mentor-record-fields.editable > label { display: grid; grid-template-columns: minmax(125px, .72fr) minmax(0, 1.7fr); gap: 15px; padding: 10px 0; border-bottom: 1px solid #f0e5d9; }
+.mentor-record-fields.editable > label > span { padding-top: 8px; color: #927b6a; font-size: 11px; line-height: 1.55; }
+.mentor-record-field-control { min-width: 0; }
+.mentor-record-field-control textarea { display: block; width: 100%; min-height: 38px; resize: vertical; border: 1px solid #e6d8c7; border-radius: 7px; outline: 0; background: #fffdf8; padding: 8px 9px; color: #5f5148; font: inherit; font-size: 12px; font-weight: 600; line-height: 1.5; }
+.mentor-record-field-control textarea:hover { border-color: #ddb88f; }
+.mentor-record-field-control textarea:focus { border-color: var(--spots-coral); box-shadow: 0 0 0 3px rgba(255,116,63,.12); background: #fff; }
+.mentor-record-field-control > div { display: flex; align-items: center; justify-content: flex-end; gap: 7px; min-height: 28px; padding-top: 5px; }
+.mentor-record-field-control > div > span { margin-right: auto; color: #9b806b; font-size: 10px; }
+.mentor-record-field-control > div > span svg { margin-right: 3px; vertical-align: -2px; }
+.mentor-record-field-control > div > a, .mentor-record-field-control > div > button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 26px; padding: 0 8px; border: 1px solid #e1cfbb; border-radius: 6px; background: #fff; color: #8b6f59; font-size: 10px; font-weight: 700; cursor: pointer; }
+.mentor-record-field-control > div > button:not(:disabled) { border-color: var(--spots-coral); background: #fff0dc; color: #a45137; }
+.mentor-record-field-control > div > button:disabled { cursor: default; opacity: .48; }
 .mentor-record-note-section .mentor-note-readonly { margin-top: 0; }
 .mentor-record-note-section .mentor-note-editor { margin-top: 0; }
 .mentor-record-feedback-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
@@ -2837,6 +2853,10 @@ body { background-color: #f0e0ca; background-image: radial-gradient(rgba(33, 29,
   .mentor-record-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mentor-record-fields > div { grid-template-columns: 1fr; gap: 3px; padding: 9px 0; }
   .mentor-record-fields > div > strong { font-size: 11px; }
+  .mentor-record-fields.editable > label { grid-template-columns: 1fr; gap: 4px; padding: 9px 0; }
+  .mentor-record-fields.editable > label > span { padding-top: 0; }
+  .portal-user-chip { padding-right: 5px; }
+  .portal-user-chip b { display: none; }
   .mentor-record-feedback-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mentor-record-footer { padding: 11px 15px 13px; }
   .mentor-record-footer > span { display: none; }

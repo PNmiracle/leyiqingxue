@@ -14,7 +14,28 @@ async function staticDemoRequest(path, requestOptions) {
     return { mentors: [], fields: [], total: 0, readOnly: true, source: 'static-demo' };
   }
   if (url.pathname === '/api/crm') return { data: {} };
-  if (url.pathname === '/api/case-state') return { state: {} };
+  if (url.pathname === '/api/case-state') {
+    const requestBody = requestOptions.body ? JSON.parse(requestOptions.body) : {};
+    const caseId = url.searchParams.get('caseId') || requestBody.caseId || 'student-1';
+    const storageKey = `leyiqingxue:case-state:${caseId}`;
+    let current = {};
+    try { current = JSON.parse(window.localStorage.getItem(storageKey) || '{}'); } catch {}
+    if (method === 'GET') return { state: current };
+    const patch = requestBody.patch || {};
+    const nestedKeys = ['notes', 'feedback', 'feedbackNotes', 'interviewNotes', 'outreachStages', 'mentorFieldOverrides'];
+    const next = { ...current, ...patch, updatedAt: new Date().toISOString(), updatedBy: requestBody.actor || '静态演示' };
+    for (const key of nestedKeys) {
+      if (!patch[key] || typeof patch[key] !== 'object') continue;
+      next[key] = { ...(current[key] || {}) };
+      for (const [entryKey, value] of Object.entries(patch[key])) {
+        next[key][entryKey] = value && typeof value === 'object' && !Array.isArray(value)
+          ? { ...(current[key]?.[entryKey] || {}), ...value }
+          : value;
+      }
+    }
+    window.localStorage.setItem(storageKey, JSON.stringify(next));
+    return { state: next, staticDemo: true };
+  }
   if (url.pathname === '/api/files' && method === 'GET') return { files: [] };
   if (url.pathname.startsWith('/api/')) return { ok: true, staticDemo: true };
   return null;
