@@ -1089,7 +1089,10 @@ function MentorRecordDrawer({mentor,onClose,studentMode=false,selected=false,onT
     setDraftFields(next);
     setSavedFields(next);
     setLastSavedField('');
-  },[mentorKey,mentor?.rawFields]);
+  // Only reset the draft when opening a different record. The case-state poll
+  // recreates rawFields objects every five seconds; depending on that object
+  // would erase an in-progress edit before the user can save it.
+  },[mentorKey]);
   if(!mentor)return null;
   const selectedFeedback=feedbackMeta(feedback[mentor.id]);
   const note=mentorRecommendationNote(mentor,notes);
